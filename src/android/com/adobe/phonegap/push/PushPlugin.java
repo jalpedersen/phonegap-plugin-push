@@ -3,8 +3,13 @@ package com.adobe.phonegap.push;
 import android.app.NotificationManager;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.res.AssetFileDescriptor;
+import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
+
+
 
 import com.google.android.gms.gcm.GcmPubSub;
 import com.google.android.gms.iid.InstanceID;
@@ -22,6 +27,8 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import me.leolin.shortcutbadger.ShortcutBadger;
 
@@ -33,7 +40,9 @@ public class PushPlugin extends CordovaPlugin implements PushConstants {
     private static CordovaWebView gWebView;
     private static Bundle gCachedExtras = null;
     private static boolean gForeground = false;
-
+    private static MediaPlayer mediaPlayer;
+    private static boolean alarmActive;
+    private static Lock mediaLock = new ReentrantLock();
     /**
      * Gets the application context from cordova's main activity.
      * @return the application context
@@ -42,12 +51,42 @@ public class PushPlugin extends CordovaPlugin implements PushConstants {
         return this.cordova.getActivity().getApplicationContext();
     }
 
+    public static void startAlarm(){
+        mediaLock.lock();
+        try {
+            Log.d(LOG_TAG, "Starting alarm");
+            if (mediaPlayer == null) {
+                Log.d(LOG_TAG, "No mediaplayer available");
+                return;
+            }
+            mediaPlayer.start();
+        }finally {
+            mediaLock.unlock();
+        }
+
+    }
+    public static void stopAlarm() {
+        mediaLock.lock();
+        try {
+            Log.d(LOG_TAG, "Stopping alarm");
+            if (mediaPlayer == null) {
+                Log.d(LOG_TAG, "No mediaplayer available");
+                return;
+            }
+
+            mediaPlayer.stop();
+        }finally {
+            mediaLock.unlock();
+        }
+    }
+
     @Override
     public boolean execute(final String action, final JSONArray data, final CallbackContext callbackContext) {
         Log.v(LOG_TAG, "execute: action=" + action);
         gWebView = this.webView;
 
         if (INITIALIZE.equals(action)) {
+
             cordova.getThreadPool().execute(new Runnable() {
                 public void run() {
                     pushContext = callbackContext;
@@ -91,7 +130,7 @@ public class PushPlugin extends CordovaPlugin implements PushConstants {
                             JSONArray topics = jo.optJSONArray(TOPICS);
                             subscribeToTopics(topics, token);
 
-                            PushPlugin.sendEvent( json );
+                            PushPlugin.sendEvent(json);
                         } else {
                             callbackContext.error("Empty registration ID received from GCM");
                             return;
@@ -116,7 +155,7 @@ public class PushPlugin extends CordovaPlugin implements PushConstants {
                         } catch (JSONException e) {
                             Log.d(LOG_TAG, "no iconColor option");
                         }
-                        
+
                         boolean clearBadge = jo.optBoolean(CLEAR_BADGE, false);
                         if (clearBadge) {
                             setApplicationIconBadgeNumber(getApplicationContext(), 0);
@@ -132,6 +171,15 @@ public class PushPlugin extends CordovaPlugin implements PushConstants {
                         editor.commit();
 
                     }
+                    //Intialize mediaplayer
+                    try {
+                        mediaPlayer = new MediaPlayer();
+                        AssetFileDescriptor afd = cordova.getActivity().getAssets().openFd("www/alarm.wav");
+                        mediaPlayer.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
+                        mediaPlayer.prepare();
+                    }catch (IOException e) {
+                        Log.e(LOG_TAG, "Could not initialize mediaplayer", e);
+                    }
 
                     if (gCachedExtras != null) {
                         Log.v(LOG_TAG, "sending cached extras");
@@ -140,6 +188,10 @@ public class PushPlugin extends CordovaPlugin implements PushConstants {
                     }
                 }
             });
+        } else if (STOP_ALARM.equals(action)) {
+            stopAlarm();
+        } else if (START_ALARM.equals(action)) {
+            startAlarm();
         } else if (UNREGISTER.equals(action)) {
             cordova.getThreadPool().execute(new Runnable() {
                 public void run() {

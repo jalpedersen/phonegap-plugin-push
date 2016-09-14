@@ -73,7 +73,12 @@ public class GCMIntentService extends GcmListenerService implements PushConstant
             if (clearBadge) {
                 PushPlugin.setApplicationIconBadgeNumber(getApplicationContext(), 0);
             }
+            final String alarm = extras.getString("alarm", "");
+            if (! alarm.isEmpty()) {
+                Log.d(LOG_TAG, "Alarm: " + alarm);
+                PushPlugin.startAlarm();
 
+            }
             // if we are in the foreground and forceShow is `false` only send data
             if (!forceShow && PushPlugin.isInForeground()) {
                 Log.d(LOG_TAG, "foreground");
