@@ -76,6 +76,7 @@ public class GCMIntentService extends GcmListenerService implements PushConstant
             final String alarm = extras.getString("alarm", "");
             if (! alarm.isEmpty()) {
                 Log.d(LOG_TAG, "Alarm: " + alarm);
+                PushPlugin.initMediaPlayer(this);
                 PushPlugin.startAlarm();
 
             }

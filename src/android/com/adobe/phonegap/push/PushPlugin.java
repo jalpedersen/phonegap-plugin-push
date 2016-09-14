@@ -43,6 +43,8 @@ public class PushPlugin extends CordovaPlugin implements PushConstants {
     private static MediaPlayer mediaPlayer;
     private static boolean alarmActive;
     private static Lock mediaLock = new ReentrantLock();
+
+
     /**
      * Gets the application context from cordova's main activity.
      * @return the application context
@@ -54,6 +56,7 @@ public class PushPlugin extends CordovaPlugin implements PushConstants {
     public static void startAlarm(){
         mediaLock.lock();
         try {
+            alarmActive = true;
             Log.d(LOG_TAG, "Starting alarm");
             if (mediaPlayer == null) {
                 Log.d(LOG_TAG, "No mediaplayer available");
@@ -68,6 +71,7 @@ public class PushPlugin extends CordovaPlugin implements PushConstants {
     public static void stopAlarm() {
         mediaLock.lock();
         try {
+            alarmActive = false;
             Log.d(LOG_TAG, "Stopping alarm");
             if (mediaPlayer == null) {
                 Log.d(LOG_TAG, "No mediaplayer available");
@@ -172,14 +176,6 @@ public class PushPlugin extends CordovaPlugin implements PushConstants {
 
                     }
                     //Intialize mediaplayer
-                    try {
-                        mediaPlayer = new MediaPlayer();
-                        AssetFileDescriptor afd = cordova.getActivity().getAssets().openFd("www/alarm.wav");
-                        mediaPlayer.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
-                        mediaPlayer.prepare();
-                    }catch (IOException e) {
-                        Log.e(LOG_TAG, "Could not initialize mediaplayer", e);
-                    }
 
                     if (gCachedExtras != null) {
                         Log.v(LOG_TAG, "sending cached extras");
@@ -190,8 +186,26 @@ public class PushPlugin extends CordovaPlugin implements PushConstants {
             });
         } else if (STOP_ALARM.equals(action)) {
             stopAlarm();
+            callbackContext.success();
         } else if (START_ALARM.equals(action)) {
             startAlarm();
+            callbackContext.success();
+        } else if (IS_ALARM_ACTIVE.equals(action)) {
+            cordova.getThreadPool().execute(new Runnable() {
+                public void run() {
+                    JSONObject jo = new JSONObject();
+                    try {
+                        jo.put("isActive", alarmActive);
+                        PluginResult pluginResult = new PluginResult(PluginResult.Status.OK, jo);
+                        pluginResult.setKeepCallback(true);
+                        callbackContext.sendPluginResult(pluginResult);
+                    } catch (UnknownError e) {
+                        callbackContext.error(e.getMessage());
+                    } catch (JSONException e) {
+                        callbackContext.error(e.getMessage());
+                    }
+                }
+            });
         } else if (UNREGISTER.equals(action)) {
             cordova.getThreadPool().execute(new Runnable() {
                 public void run() {
@@ -310,9 +324,25 @@ public class PushPlugin extends CordovaPlugin implements PushConstants {
         }
     }
 
+    public static void initMediaPlayer(Context context) {
+        try {
+            if (mediaPlayer != null) {
+                return;
+            }
+            Log.d(LOG_TAG, "Initialising media player");
+            mediaPlayer = new MediaPlayer();
+            AssetFileDescriptor afd = context.getAssets().openFd("www/alarm.wav");
+            mediaPlayer.setDataSource(afd.getFileDescriptor(), afd.getStartOffset(), afd.getLength());
+            mediaPlayer.prepare();
+        }catch (IOException e) {
+            Log.e(LOG_TAG, "Could not initialize mediaplayer", e);
+        }
+    }
+
     @Override
     public void initialize(CordovaInterface cordova, CordovaWebView webView) {
         super.initialize(cordova, webView);
+        initMediaPlayer(cordova.getActivity());
         gForeground = true;
     }
 

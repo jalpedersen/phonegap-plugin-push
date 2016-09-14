@@ -62,4 +62,5 @@ public interface PushConstants {
     public static final String INLINE_REPLY = "inlineReply";
     public static final String START_ALARM = "startAlarm";
     public static final String STOP_ALARM = "stopAlarm";
+    public static final String IS_ALARM_ACTIVE = "isAlarmActive";
 }

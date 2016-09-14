@@ -263,6 +263,19 @@ module.exports = {
         exec(successCallback, errorCallback, 'PushNotification', 'hasPermission', []);
     },
 
+    isAlarmActive: function(successCallback, errorCallback) {
+        exec(successCallback, errorCallback, 'PushNotification', 'isAlarmActive', []);
+    },
+
+    startAlarm: function(successCallback, errorCallback) {
+        exec(successCallback, errorCallback, 'PushNotification', 'startAlarm', []);
+    },
+
+    stopAlarm: function(successCallback, errorCallback) {
+        exec(successCallback, errorCallback, 'PushNotification', 'stopAlarm', []);
+    },
+
+
     /**
      * PushNotification Object.
      *
