@@ -62,6 +62,7 @@ public class PushPlugin extends CordovaPlugin implements PushConstants {
                 Log.d(LOG_TAG, "No mediaplayer available");
                 return;
             }
+            mediaPlayer.setLooping(true);
             mediaPlayer.start();
         }finally {
             mediaLock.unlock();
@@ -188,6 +189,7 @@ public class PushPlugin extends CordovaPlugin implements PushConstants {
             stopAlarm();
             callbackContext.success();
         } else if (START_ALARM.equals(action)) {
+            initMediaPlayer(getApplicationContext());
             startAlarm();
             callbackContext.success();
         } else if (IS_ALARM_ACTIVE.equals(action)) {
@@ -327,7 +329,12 @@ public class PushPlugin extends CordovaPlugin implements PushConstants {
     public static void initMediaPlayer(Context context) {
         try {
             if (mediaPlayer != null) {
-                return;
+                try {
+                    mediaPlayer.release();
+                }catch (Exception e) {
+                    Log.e(LOG_TAG, "Could not release old player", e);
+
+                }
             }
             Log.d(LOG_TAG, "Initialising media player");
             mediaPlayer = new MediaPlayer();
